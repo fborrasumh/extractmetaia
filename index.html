@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExtractMetaIA · Extracción para meta-análisis</title>
+<meta name="description" content="Extracción estructurada de datos de papers para meta-análisis, con trazabilidad y confirmación humana. Compañera de MetaAnálisisIA. UMH.">
+<meta name="author" content="Fernando Borrás Rocher">
+<meta name="orcid" content="0000-0002-5519-4573">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root {
+  --bg: #f4f5f2; --surface: #fff; --border: #e2e1dc; --border-strong: #c9c8c2;
+  --text: #161513; --muted: #6f6d67;
+  --inv: #0f5c42; --inv-mid: #1a7a58; --inv-soft: #e0f2ea; --inv-glow: rgba(15,92,66,.12);
+  --doc: #1a4fd8; --warn: #b83a0c; --warn-soft: #fde9e3;
+  --amber: #9a7209; --amber-soft: #faf0d6;
+  --ok: #0f5c42; --ok-soft: #e0f2ea;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,.07);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4 { font-family: 'Sora', sans-serif; font-weight: 700; letter-spacing: -.02em; }
+a { color: var(--doc); text-decoration: none; } a:hover { text-decoration: underline; }
+button, input, select, textarea { font: inherit; }
+
+.hero {
+  background: linear-gradient(145deg, #0d1f18 0%, #122a20 40%, #1a1916 100%);
+  color: #fff; padding: 36px 20px 32px; text-align: center; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(26,122,88,.35), transparent 60%);
+  pointer-events: none;
+}
+.hero .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: #7a9e8e; margin-bottom: 12px; position: relative; }
+.hero h1 { font-size: clamp(1.75rem, 4.5vw, 2.5rem); font-weight: 800; position: relative; line-height: 1.15; }
+.hero h1 span { color: #5ee4a8; }
+.hero .sub { color: #9bb5a8; font-size: .95rem; max-width: 520px; margin: 10px auto 0; position: relative; line-height: 1.6; }
+.hero-badges { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; position: relative; }
+.badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px;
+  font-size: 11px; font-weight: 600; background: rgba(255,255,255,.08); color: #b8d4c8; border: 1px solid rgba(255,255,255,.1);
+}
+
+.app { max-width: 980px; margin: 0 auto; padding: 0 16px 100px; }
+
+.author-card {
+  display: flex; align-items: center; gap: 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px;
+  margin: -20px 0 0; box-shadow: var(--shadow-lg); position: relative; z-index: 2;
+}
+.author-avatar {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--inv-soft), #c8e8d8);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--inv); flex-shrink: 0;
+}
+.author-card .name { font-weight: 700; font-size: 15px; }
+.author-card .aff { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.author-card .orcid { font-size: 12px; color: var(--inv); display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-weight: 500; }
+
+.stepper { display: flex; gap: 6px; margin: 28px 0 18px; flex-wrap: wrap; }
+.stepper button {
+  flex: 1; min-width: 100px; padding: 11px 8px; border: 1px solid var(--border-strong);
+  background: var(--surface); border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+  color: var(--muted); transition: all .18s;
+}
+.stepper button .num {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border-radius: 50%; font-size: 11px; background: var(--border); color: var(--muted); margin-right: 5px; transition: .18s;
+}
+.stepper button.active { background: var(--inv); color: #fff; border-color: var(--inv); box-shadow: 0 2px 12px var(--inv-glow); }
+.stepper button.active .num { background: rgba(255,255,255,.25); color: #fff; }
+.stepper button.done { background: var(--inv-soft); color: var(--inv); border-color: #a8d9c4; }
+.stepper button.done .num { background: var(--inv); color: #fff; }
+.stepper button:hover:not(.active) { background: #f0efe9; }
+
+.panel {
+  display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 26px 22px; box-shadow: var(--shadow); animation: fadeIn .25s ease;
+}
+.panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.panel h2 { font-size: 1.2rem; margin-bottom: 4px; }
+.panel .hint { font-size: 13.5px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+
+label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+input[type=text], input[type=password], input[type=number], select, textarea {
+  width: 100%; padding: 10px 13px; border: 1px solid var(--border-strong); border-radius: 9px;
+  background: #fafaf8; margin-bottom: 14px; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--inv-mid); background: #fff; box-shadow: 0 0 0 3px var(--inv-glow); }
+textarea { min-height: 120px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; line-height: 1.5; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 9px; border: 0;
+  font-weight: 600; font-size: 13.5px; cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: var(--inv); color: #fff; box-shadow: 0 1px 3px rgba(15,92,66,.25); }
+.btn-primary:hover { background: #0a4a34; transform: translateY(-1px); }
+.btn-secondary { background: #f3f2ee; color: var(--text); border: 1px solid var(--border-strong); }
+.btn-secondary:hover { background: #eae9e3; }
+.btn-ghost { background: transparent; color: var(--muted); padding: 8px 10px; }
+.btn-ghost:hover { color: var(--text); background: #f0efe9; }
+.btn-ok { background: var(--ok-soft); color: var(--ok); border: 1px solid #b5dfc9; }
+.btn-warn { background: var(--warn-soft); color: var(--warn); border: 1px solid #f0c4b4; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; align-items: center; }
+
+.table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 10px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th {
+  background: #f8f7f4; text-align: left; padding: 9px 12px; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 600;
+}
+table.data td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data tr:hover td { background: #fafaf8; }
+table.data input, table.data select {
+  margin: 0; padding: 5px 8px; font-size: 13px; background: #fff;
+  border: 1px solid transparent; border-radius: 6px; width: 100%;
+}
+table.data input:focus, table.data select:focus { border-color: var(--inv-mid); box-shadow: 0 0 0 2px var(--inv-glow); }
+
+.msg {
+  padding: 12px 15px; border-radius: 10px; font-size: 13px; margin: 12px 0;
+  display: flex; gap: 10px; align-items: flex-start; line-height: 1.5;
+}
+.msg i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.msg-info { background: #eef3ff; color: #1a3a8a; border: 1px solid #d0dbf5; }
+.msg-ok { background: var(--inv-soft); color: var(--inv); border: 1px solid #b5dfc9; }
+.msg-warn { background: var(--warn-soft); color: var(--warn); border: 1px solid #f0c4b4; }
+.msg-amber { background: var(--amber-soft); color: var(--amber); border: 1px solid #edd9a0; }
+
+.section-title {
+  font-size: 14px; font-weight: 700; margin: 22px 0 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title i { color: var(--inv); font-size: 17px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+  border-radius: 99px; font-size: 11px; font-weight: 600;
+}
+.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-pending { background: var(--amber-soft); color: var(--amber); }
+.chip-ai { background: #eef3ff; color: #1a4fd8; }
+.chip-human { background: #f0efe9; color: #555; }
+.chip-reject { background: var(--warn-soft); color: var(--warn); }
+
+.schema-card {
+  border: 1px solid var(--border); border-radius: 11px; padding: 14px 16px;
+  margin-bottom: 10px; cursor: pointer; transition: .15s; background: #fafaf8;
+}
+.schema-card:hover, .schema-card.selected {
+  border-color: var(--inv); background: var(--inv-soft); box-shadow: 0 0 0 3px var(--inv-glow);
+}
+.schema-card h4 { font-size: 14px; margin-bottom: 4px; }
+.schema-card p { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+.study-card {
+  border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  margin-bottom: 14px; background: #fafaf8;
+}
+.study-card h4 { font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field-row {
+  display: grid; grid-template-columns: 140px 1fr auto auto; gap: 8px; align-items: center;
+  margin-bottom: 8px; font-size: 13px;
+}
+@media (max-width: 640px) {
+  .field-row { grid-template-columns: 1fr; gap: 4px; }
+}
+.field-row .fname { font-weight: 600; color: var(--muted); font-size: 12px; }
+.field-row input { margin: 0; }
+.field-source { font-size: 11px; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ai-box {
+  background: linear-gradient(135deg, #f8f7f4, #f0f5f2); border: 1px solid var(--border);
+  border-radius: 11px; padding: 4px 16px; margin: 12px 0;
+}
+.ai-box summary {
+  cursor: pointer; font-weight: 600; font-size: 13px; padding: 12px 0;
+  list-style: none; display: flex; align-items: center; gap: 8px;
+}
+.ai-box summary::-webkit-details-marker { display: none; }
+.ai-box summary i { color: var(--inv); }
+
+.limits {
+  font-size: 12px; color: var(--muted); margin-top: 24px; padding-top: 16px;
+  border-top: 1px solid var(--border); line-height: 1.55;
+}
+.limits strong { color: var(--text); }
+footer { text-align: center; padding: 28px 16px; font-size: 12px; color: var(--muted); }
+footer a { color: var(--doc); }
+
+.stats-mini {
+  display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0;
+}
+.stats-mini .s {
+  background: var(--inv-soft); color: var(--inv); padding: 8px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <p class="eyebrow">fborrasumh · UMH · Investigación</p>
+  <h1>Extract<span>Meta</span>IA</h1>
+  <p class="sub">De papers a tablas listas para meta-análisis. La IA propone; tú confirmas. Trazabilidad total.</p>
+  <div class="hero-badges">
+    <span class="badge"><i class="ti ti-table"></i> Extracción estructurada</span>
+    <span class="badge"><i class="ti ti-user-check"></i> Confirmación humana</span>
+    <span class="badge"><i class="ti ti-link"></i> → MetaAnálisisIA</span>
+    <span class="badge"><i class="ti ti-shield-check"></i> Privacidad local</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <div class="author-card">
+    <div class="author-avatar"><i class="ti ti-user"></i></div>
+    <div style="flex:1">
+      <div class="name">Fernando Borrás Rocher</div>
+      <div class="aff">Universidad Miguel Hernández de Elche</div>
+      <a class="orcid" href="https://orcid.org/0000-0002-5519-4573" target="_blank" rel="noopener">
+        <i class="ti ti-id"></i> 0000-0002-5519-4573
+      </a>
+    </div>
+    <div style="text-align:right;font-size:11px;color:var(--muted)">
+      <div>v0.1.0</div>
+      <div style="margin-top:2px">MIT</div>
+    </div>
+  </div>
+
+  <div class="stepper" id="stepper">
+    <button type="button" class="active" data-step="0" onclick="go(0)"><span class="num">1</span> Proyecto</button>
+    <button type="button" data-step="1" onclick="go(1)"><span class="num">2</span> Esquema</button>
+    <button type="button" data-step="2" onclick="go(2)"><span class="num">3</span> Fuentes</button>
+    <button type="button" data-step="3" onclick="go(3)"><span class="num">4</span> Extracción</button>
+    <button type="button" data-step="4" onclick="go(4)"><span class="num">5</span> Exportar</button>
+  </div>
+
+  <!-- STEP 0: PROYECTO -->
+  <section class="panel active" id="panel-0">
+    <h2>Proyecto de extracción</h2>
+    <p class="hint">Define la pregunta y el contexto. Estos datos viajan con la tabla exportada hacia MetaAnálisisIA.</p>
+
+    <label>Nombre del proyecto</label>
+    <input type="text" id="projName" placeholder="Ej. Eficacia de X en Y — revisión 2026" value="Demo · Intervención vs control">
+
+    <label>Pregunta / PICO (breve)</label>
+    <textarea id="projPico" rows="3" placeholder="Población, Intervención, Comparador, Outcomes…">Adultos con condición Z; intervención A vs control; outcome: cambio en escala (SMD o MD).</textarea>
+
+    <div class="row">
+      <div>
+        <label>Outcome principal</label>
+        <input type="text" id="projOutcome" value="Cambio en puntuación clínica (efecto continuo)">
+      </div>
+      <div>
+        <label>Medida de efecto prevista</label>
+        <select id="projMeasure">
+          <option value="smd">SMD / Cohen's d</option>
+          <option value="md">Mean Difference (MD)</option>
+          <option value="logor">Log Odds Ratio</option>
+          <option value="logrr">Log Risk Ratio</option>
+          <option value="generic">Genérico (yi + sei)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="msg msg-info">
+      <i class="ti ti-info-circle"></i>
+      <div>Puedes cambiar el esquema en el siguiente paso. El demo carga 3 estudios sintéticos para probar el flujo sin API key.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" type="button" onclick="go(1)">Continuar al esquema <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </section>
+
+  <!-- STEP 1: ESQUEMA -->
+  <section class="panel" id="panel-1">
+    <h2>Esquema de extracción</h2>
+    <p class="hint">Elige una plantilla o personaliza los campos. Cada campo se convertirá en una columna de la tabla final.</p>
+
+    <div id="schemaList"></div>
+
+    <div class="section-title"><i class="ti ti-list"></i> Campos del esquema activo</div>
+    <div class="table-wrap">
+      <table class="data" id="schemaTable">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" type="button" onclick="go(0)"><i class="ti ti-arrow-left"></i> Proyecto</button>
+      <button class="btn btn-primary" type="button" onclick="go(2)">Fuentes <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </section>
+
+  <!-- STEP 2: FUENTES -->
+  <section class="panel" id="panel-2">
+    <h2>Fuentes (estudios)</h2>
+    <p class="hint">Añade estudios pegando texto (abstract + results + tablas) o carga el demo. En v0.1 la entrada es texto; el PDF nativo queda para una versión posterior.</p>
+
+    <div class="actions" style="margin-top:0">
+      <button class="btn btn-primary" type="button" onclick="loadDemoSources()"><i class="ti ti-flask"></i> Cargar 3 estudios demo</button>
+      <button class="btn btn-secondary" type="button" onclick="addSourceForm()"><i class="ti ti-plus"></i> Añadir estudio</button>
+    </div>
+
+    <div id="sourcesList"></div>
+
+    <div class="ai-box">
+      <details>
+        <summary><i class="ti ti-key"></i> Configuración de IA (para proponer extracciones)</summary>
+        <div style="padding-bottom:14px">
+          <div class="row">
+            <div>
+              <label>Proveedor</label>
+              <select id="aiProvider" onchange="syncModel()">
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Claude</option>
+                <option value="google">Gemini</option>
+              </select>
+            </div>
+            <div>
+              <label>Modelo</label>
+              <input type="text" id="aiModel" value="gpt-4o-mini">
+            </div>
+          </div>
+          <label>API Key</label>
+          <input type="password" id="apiKey" placeholder="sk-… / sk-ant-… / AIza…">
+          <p style="font-size:12px;color:var(--muted);margin-top:-8px">Solo se usa al pedir «Proponer con IA». El demo de extracción por reglas funciona sin clave.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" type="button" onclick="go(1)"><i class="ti ti-arrow-left"></i> Esquema</button>
+      <button class="btn btn-primary" type="button" onclick="prepareExtraction(); go(3)">Ir a extracción <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </section>
+
+  <!-- STEP 3: EXTRACCIÓN -->
+  <section class="panel" id="panel-3">
+    <h2>Extracción asistida</h2>
+    <p class="hint">Revisa cada campo. <strong>Aceptar</strong> confirma el valor; <strong>Corregir</strong> edita; sin aceptar no entra en la tabla final.</p>
+
+    <div class="actions" style="margin-top:0">
+      <button class="btn btn-primary" type="button" onclick="proposeAllRules()"><i class="ti ti-wand"></i> Proponer (reglas, sin IA)</button>
+      <button class="btn btn-secondary" type="button" onclick="proposeAllAI()"><i class="ti ti-sparkles"></i> Proponer con IA</button>
+      <button class="btn btn-ok" type="button" onclick="acceptAllPending()"><i class="ti ti-checks"></i> Aceptar todos los pendientes</button>
+    </div>
+
+    <div class="stats-mini" id="extractStats"></div>
+    <div id="extractList"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" type="button" onclick="go(2)"><i class="ti ti-arrow-left"></i> Fuentes</button>
+      <button class="btn btn-primary" type="button" onclick="buildFinalTable(); go(4)">Revisar y exportar <i class="ti ti-arrow-right"></i></button>
+    </div>
+
+    <div class="limits">
+      <strong>Principio:</strong> la IA (o las reglas) solo proponen. El estado «aceptado» lo decides tú. El export solo incluye celdas aceptadas o corregidas por humano.
+    </div>
+  </section>
+
+  <!-- STEP 4: EXPORT -->
+  <section class="panel" id="panel-4">
+    <h2>Tabla final y exportación</h2>
+    <p class="hint">Solo valores confirmados. Formato compatible con <a href="https://fborrasumh.github.io/metaanalisisia/" target="_blank" rel="noopener">MetaAnálisisIA</a> (<code>study</code>, <code>yi</code>, <code>sei</code>, …).</p>
+
+    <div class="stats-mini" id="exportStats"></div>
+
+    <div class="table-wrap">
+      <table class="data" id="finalTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section-title"><i class="ti ti-clipboard-list"></i> Auditoría (resumen)</div>
+    <div id="auditBox" class="msg msg-info" style="display:none"></div>
+
+    <div class="section-title"><i class="ti ti-download"></i> Exportar</div>
+    <div class="actions" style="margin-top:8px">
+      <button class="btn btn-primary" type="button" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> CSV para MetaAnálisisIA</button>
+      <button class="btn btn-secondary" type="button" onclick="exportJSON()"><i class="ti ti-braces"></i> JSON (proyecto + auditoría)</button>
+      <button class="btn btn-secondary" type="button" onclick="exportAuditHTML()"><i class="ti ti-file-code"></i> Informe HTML</button>
+      <a class="btn btn-secondary" href="https://fborrasumh.github.io/metaanalisisia/" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Abrir MetaAnálisisIA</a>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" type="button" onclick="go(3)"><i class="ti ti-arrow-left"></i> Extracción</button>
+    </div>
+
+    <div class="limits">
+      <strong>Límites v0.1:</strong> entrada por texto (no PDF embebido). Propuestas por reglas cubren patrones frecuentes (n, media, DE, OR, IC); la IA mejora cobertura si la activas.
+      No sustituye doble extracción ciega de una revisión formal.
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <p><strong>ExtractMetaIA</strong> · <a href="https://orcid.org/0000-0002-5519-4573" target="_blank" rel="noopener">Fernando Borrás Rocher</a> · Universidad Miguel Hernández de Elche</p>
+  <p style="margin-top:5px">
+    <a href="https://fborrasumh.github.io/metaanalisisia/" target="_blank" rel="noopener">MetaAnálisisIA</a> ·
+    <a href="https://fborrasumh.github.io/ia/" target="_blank" rel="noopener">Catálogo IA</a> · Licencia MIT · v0.1.0
+  </p>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ExtractMetaIA v0.1 — extracción estructurada + confirmación
+   ═══════════════════════════════════════════════════════════ */
+
+const SCHEMAS = {
+  continuous: {
+    id: 'continuous',
+    name: 'Efecto continuo (MD / SMD)',
+    desc: 'study, n, mean, sd (o yi/sei ya calculados), group opcional',
+    fields: [
+      { key: 'study', label: 'Estudio', type: 'text', required: true, desc: 'Autor año o ID' },
+      { key: 'n', label: 'N', type: 'number', required: true, desc: 'Tamaño muestral del brazo o total' },
+      { key: 'mean', label: 'Media', type: 'number', required: false, desc: 'Media del outcome' },
+      { key: 'sd', label: 'DE / SD', type: 'number', required: false, desc: 'Desviación estándar' },
+      { key: 'yi', label: 'yi (efecto)', type: 'number', required: false, desc: 'Efecto ya calculado (MD/SMD)' },
+      { key: 'sei', label: 'sei (SE)', type: 'number', required: false, desc: 'Error estándar de yi' },
+      { key: 'group', label: 'Grupo / brazo', type: 'text', required: false, desc: 'Subgrupo o brazo' }
+    ]
+  },
+  binary: {
+    id: 'binary',
+    name: 'Efecto binario (OR / RR)',
+    desc: 'Eventos y totales, o OR/RR con IC',
+    fields: [
+      { key: 'study', label: 'Estudio', type: 'text', required: true, desc: 'Autor año' },
+      { key: 'events', label: 'Eventos', type: 'number', required: false, desc: 'Nº de eventos' },
+      { key: 'total', label: 'Total', type: 'number', required: false, desc: 'N del brazo' },
+      { key: 'or', label: 'OR / RR', type: 'number', required: false, desc: 'Odds o risk ratio' },
+      { key: 'ci_low', label: 'IC inferior', type: 'number', required: false, desc: 'Límite inferior IC' },
+      { key: 'ci_high', label: 'IC superior', type: 'number', required: false, desc: 'Límite superior IC' },
+      { key: 'group', label: 'Grupo', type: 'text', required: false, desc: 'Subgrupo' }
+    ]
+  },
+  ready: {
+    id: 'ready',
+    name: 'Listo para meta-análisis (yi + sei)',
+    desc: 'Cuando el paper ya reporta efecto y SE o IC transformable',
+    fields: [
+      { key: 'study', label: 'Estudio', type: 'text', required: true, desc: 'ID' },
+      { key: 'yi', label: 'yi', type: 'number', required: true, desc: 'Efecto' },
+      { key: 'sei', label: 'sei', type: 'number', required: true, desc: 'Error estándar' },
+      { key: 'ni', label: 'ni', type: 'number', required: false, desc: 'N' },
+      { key: 'group', label: 'Grupo', type: 'text', required: false, desc: 'Subgrupo' }
+    ]
+  }
+};
+
+let activeSchema = 'ready';
+let sources = []; // { id, label, text }
+let extractions = []; // { sourceId, fields: { key: { value, status, source, proposedBy } } }
+// status: pending | accepted | corrected | rejected
+
+function go(i) {
+  document.querySelectorAll('.panel').forEach((p, idx) => p.classList.toggle('active', idx === i));
+  document.querySelectorAll('.stepper button').forEach((b, idx) => {
+    b.classList.toggle('active', idx === i);
+    b.classList.toggle('done', idx < i);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (i === 1) renderSchemas();
+  if (i === 2) renderSources();
+  if (i === 3) renderExtractions();
+  if (i === 4) buildFinalTable();
+}
+
+function esc(t) {
+  return String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+
+/* ── Esquemas ── */
+function renderSchemas() {
+  const list = document.getElementById('schemaList');
+  list.innerHTML = Object.values(SCHEMAS).map(s => `
+    <div class="schema-card ${s.id === activeSchema ? 'selected' : ''}" onclick="selectSchema('${s.id}')">
+      <h4>${esc(s.name)}</h4>
+      <p>${esc(s.desc)}</p>
+    </div>`).join('');
+  renderSchemaTable();
+}
+
+function selectSchema(id) {
+  activeSchema = id;
+  renderSchemas();
+}
+
+function renderSchemaTable() {
+  const fields = SCHEMAS[activeSchema].fields;
+  document.querySelector('#schemaTable tbody').innerHTML = fields.map(f => `
+    <tr>
+      <td><code>${esc(f.key)}</code></td>
+      <td>${esc(f.type)}</td>
+      <td>${f.required ? '<span class="chip chip-ok">Sí</span>' : 'No'}</td>
+      <td>${esc(f.desc)}</td>
+    </tr>`).join('');
+}
+
+/* ── Fuentes ── */
+const DEMO_SOURCES = [
+  {
+    label: 'Smith 2018',
+    text: `Smith et al. (2018). Randomized trial of intervention A vs control in adults with condition Z.
+Results: Intervention group n=60, mean change 4.2 (SD 2.1). Control n=60, mean change 2.1 (SD 2.3).
+The standardized mean difference was 0.42 (SE 0.15). Group: Farmacológico.`
+  },
+  {
+    label: 'Jones 2019',
+    text: `Jones & Lee (2019). Behavioral program versus usual care.
+Sample: 85 participants. Effect size (Cohen's d) = 0.18, 95% CI 0.00 to 0.50 (approx SE 0.22).
+Subgroup: Conductual.`
+  },
+  {
+    label: 'Garcia 2020',
+    text: `Garcia et al. (2020). Multicenter RCT. Primary outcome continuous score.
+Intervention n=100 mean 12.5 SD 3.0; control n=100 mean 10.2 SD 3.2.
+Reported SMD = 0.55 (SE 0.18). Farmacológico.`
+  }
+];
+
+function loadDemoSources() {
+  sources = DEMO_SOURCES.map((d, i) => ({ id: 'demo-' + i, label: d.label, text: d.text }));
+  renderSources();
+}
+
+function addSourceForm() {
+  const id = 'src-' + Date.now();
+  sources.push({ id, label: 'Nuevo estudio', text: '' });
+  renderSources();
+}
+
+function renderSources() {
+  const el = document.getElementById('sourcesList');
+  if (!sources.length) {
+    el.innerHTML = `<div class="msg msg-amber"><i class="ti ti-alert-triangle"></i> Aún no hay fuentes. Carga el demo o añade un estudio.</div>`;
+    return;
+  }
+  el.innerHTML = sources.map((s, idx) => `
+    <div class="study-card">
+      <h4>
+        <i class="ti ti-file-text"></i>
+        <input type="text" value="${esc(s.label)}" onchange="sources[${idx}].label=this.value"
+          style="flex:1;margin:0;font-weight:700;border:1px solid var(--border);border-radius:6px;padding:4px 8px">
+        <button class="btn btn-ghost" type="button" onclick="sources.splice(${idx},1);renderSources()"><i class="ti ti-trash"></i></button>
+      </h4>
+      <label>Texto del paper (abstract, results, tablas…)</label>
+      <textarea rows="5" onchange="sources[${idx}].text=this.value">${esc(s.text)}</textarea>
+    </div>`).join('');
+}
+
+/* ── Extracción ── */
+function prepareExtraction() {
+  if (!sources.length) {
+    alert('Añade al menos una fuente o carga el demo.');
+    go(2);
+    return;
+  }
+  const fields = SCHEMAS[activeSchema].fields;
+  extractions = sources.map(s => ({
+    sourceId: s.id,
+    label: s.label,
+    text: s.text,
+    fields: Object.fromEntries(fields.map(f => [f.key, {
+      value: f.key === 'study' ? s.label : '',
+      status: f.key === 'study' ? 'accepted' : 'pending',
+      source: '',
+      proposedBy: f.key === 'study' ? 'human' : null
+    }]))
+  }));
+}
+
+function renderExtractions() {
+  const el = document.getElementById('extractList');
+  if (!extractions.length) {
+    el.innerHTML = `<div class="msg msg-warn"><i class="ti ti-alert-circle"></i> Vuelve a Fuentes y pulsa «Ir a extracción».</div>`;
+    return;
+  }
+  const schemaFields = SCHEMAS[activeSchema].fields;
+  el.innerHTML = extractions.map((ex, ei) => `
+    <div class="study-card">
+      <h4>
+        ${esc(ex.label)}
+        <span class="chip chip-human">${countStatus(ex, 'accepted') + countStatus(ex, 'corrected')} confirmados</span>
+        <span class="chip chip-pending">${countStatus(ex, 'pending')} pendientes</span>
+      </h4>
+      ${schemaFields.map(f => {
+        const cell = ex.fields[f.key];
+        const st = cell.status;
+        const chip = st === 'accepted' ? 'chip-ok' : st === 'corrected' ? 'chip-human' : st === 'rejected' ? 'chip-reject' : 'chip-pending';
+        return `<div class="field-row">
+          <div class="fname">${esc(f.label)}${f.required ? ' *' : ''}</div>
+          <input type="text" value="${esc(cell.value)}"
+            onchange="onFieldEdit(${ei},'${f.key}',this.value)"
+            placeholder="${esc(f.desc)}">
+          <span class="chip ${chip}">${st}</span>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ok" type="button" style="padding:4px 8px;font-size:12px" title="Aceptar"
+              onclick="setStatus(${ei},'${f.key}','accepted')">✓</button>
+            <button class="btn btn-warn" type="button" style="padding:4px 8px;font-size:12px" title="Rechazar"
+              onclick="setStatus(${ei},'${f.key}','rejected')">✗</button>
+          </div>
+        </div>
+        ${cell.source ? `<div class="field-source" style="margin:-4px 0 8px 140px">Fuente: ${esc(cell.source)} · ${cell.proposedBy || ''}</div>` : ''}`;
+      }).join('')}
+    </div>`).join('');
+  updateExtractStats();
+}
+
+function countStatus(ex, st) {
+  return Object.values(ex.fields).filter(c => c.status === st).length;
+}
+
+function onFieldEdit(ei, key, val) {
+  const cell = extractions[ei].fields[key];
+  cell.value = val;
+  if (cell.status === 'accepted' || cell.status === 'pending') {
+    cell.status = 'corrected';
+    cell.proposedBy = 'human';
+  }
+  updateExtractStats();
+}
+
+function setStatus(ei, key, status) {
+  extractions[ei].fields[key].status = status;
+  renderExtractions();
+}
+
+function acceptAllPending() {
+  extractions.forEach(ex => {
+    Object.values(ex.fields).forEach(c => {
+      if (c.status === 'pending' && c.value !== '' && c.value != null) c.status = 'accepted';
+    });
+  });
+  renderExtractions();
+}
+
+function updateExtractStats() {
+  let acc = 0, pend = 0, corr = 0, rej = 0;
+  extractions.forEach(ex => {
+    Object.values(ex.fields).forEach(c => {
+      if (c.status === 'accepted') acc++;
+      else if (c.status === 'pending') pend++;
+      else if (c.status === 'corrected') corr++;
+      else if (c.status === 'rejected') rej++;
+    });
+  });
+  document.getElementById('extractStats').innerHTML = `
+    <div class="s">${acc} aceptados</div>
+    <div class="s" style="background:var(--amber-soft);color:var(--amber)">${pend} pendientes</div>
+    <div class="s" style="background:#f0efe9;color:#555">${corr} corregidos</div>
+    <div class="s" style="background:var(--warn-soft);color:var(--warn)">${rej} rechazados</div>`;
+}
+
+/* ── Propuestas por reglas (sin IA) ── */
+function proposeAllRules() {
+  extractions.forEach((ex, ei) => {
+    const t = ex.text || '';
+    const proposals = ruleExtract(t, activeSchema);
+    Object.entries(proposals).forEach(([key, prop]) => {
+      if (!ex.fields[key]) return;
+      if (ex.fields[key].status === 'accepted' || ex.fields[key].status === 'corrected') return;
+      ex.fields[key].value = prop.value;
+      ex.fields[key].source = prop.source;
+      ex.fields[key].proposedBy = 'rules';
+      ex.fields[key].status = 'pending';
+    });
+    if (ex.fields.study && !ex.fields.study.value) {
+      ex.fields.study.value = ex.label;
+      ex.fields.study.status = 'accepted';
+      ex.fields.study.proposedBy = 'human';
+    }
+  });
+  renderExtractions();
+}
+
+function ruleExtract(text, schemaId) {
+  const out = {};
+  const t = text.replace(/\s+/g, ' ');
+
+  // SMD / effect with SE
+  let m = t.match(/(?:SMD|standardized mean difference|effect size|Cohen'?s d|yi)\s*[=:]?\s*([+-]?\d+[.,]\d+)\s*(?:\(|,)?\s*(?:SE|se|stderr|error estándar)?\s*[=:]?\s*(\d+[.,]\d+)/i);
+  if (m) {
+    out.yi = { value: m[1].replace(',', '.'), source: m[0].slice(0, 80) };
+    out.sei = { value: m[2].replace(',', '.'), source: m[0].slice(0, 80) };
+  } else {
+    m = t.match(/(?:SMD|d|effect)\s*[=:]\s*([+-]?\d+[.,]\d+)/i);
+    if (m) out.yi = { value: m[1].replace(',', '.'), source: m[0] };
+    m = t.match(/(?:SE|se)\s*[=:]\s*(\d+[.,]\d+)/i);
+    if (m) out.sei = { value: m[1].replace(',', '.'), source: m[0] };
+  }
+
+  // n=
+  m = t.match(/\bn\s*=\s*(\d+)/i);
+  if (m) out.n = { value: m[1], source: m[0] };
+  m = t.match(/\bn\s*=\s*(\d+)/gi);
+  // mean / SD patterns
+  m = t.match(/mean\s*(?:change)?\s*(\d+[.,]\d+)\s*\(SD\s*(\d+[.,]\d+)\)/i);
+  if (m) {
+    out.mean = { value: m[1].replace(',', '.'), source: m[0] };
+    out.sd = { value: m[2].replace(',', '.'), source: m[0] };
+  }
+
+  // OR / RR with CI
+  m = t.match(/(?:OR|RR|odds ratio|risk ratio)\s*[=:]?\s*(\d+[.,]\d+)\s*(?:\(|=)?\s*(?:95%?\s*CI)?\s*(\d+[.,]\d+)\s*(?:to|–|-|,)\s*(\d+[.,]\d+)/i);
+  if (m) {
+    out.or = { value: m[1].replace(',', '.'), source: m[0].slice(0, 80) };
+    out.ci_low = { value: m[2].replace(',', '.'), source: m[0].slice(0, 80) };
+    out.ci_high = { value: m[3].replace(',', '.'), source: m[0].slice(0, 80) };
+  }
+
+  // CI alone for effect
+  m = t.match(/95%\s*CI\s*([+-]?\d+[.,]\d+)\s*(?:to|–|-)\s*([+-]?\d+[.,]\d+)/i);
+  if (m && !out.ci_low) {
+    out.ci_low = { value: m[1].replace(',', '.'), source: m[0] };
+    out.ci_high = { value: m[2].replace(',', '.'), source: m[0] };
+  }
+
+  // group keywords
+  if (/farmacol[oó]gico/i.test(t)) out.group = { value: 'Farmacológico', source: 'keyword' };
+  else if (/conductual|behavioral/i.test(t)) out.group = { value: 'Conductual', source: 'keyword' };
+
+  // ni from n
+  if (out.n) out.ni = out.n;
+
+  return out;
+}
+
+/* ── Propuestas con IA ── */
+async function proposeAllAI() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) {
+    alert('Introduce una API key o usa «Proponer (reglas, sin IA)».');
+    return;
+  }
+  const provider = document.getElementById('aiProvider').value;
+  const model = document.getElementById('aiModel').value.trim();
+  const fields = SCHEMAS[activeSchema].fields.map(f => f.key).join(', ');
+
+  for (let ei = 0; ei < extractions.length; ei++) {
+    const ex = extractions[ei];
+    const prompt = `Extrae datos estructurados para un meta-análisis a partir del texto de un paper.
+Esquema de campos: ${fields}
+Medida prevista: ${document.getElementById('projMeasure').value}
+Outcome: ${document.getElementById('projOutcome').value}
+
+Texto:
+"""
+${ex.text.slice(0, 6000)}
+"""
+
+Responde SOLO con un JSON válido, un objeto con claves del esquema.
+Para cada campo incluye: "value" (número o texto) y "source" (fragmento corto del texto).
+Ejemplo: {"study":{"value":"Smith 2018","source":"..."},"yi":{"value":0.42,"source":"SMD = 0.42"}}
+Si no encuentras un campo, omítelo. No inventes cifras.`;
+
+    try {
+      const raw = await callAI(provider, model, key, prompt);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) continue;
+      const data = JSON.parse(jsonMatch[0]);
+      Object.entries(data).forEach(([key, prop]) => {
+        if (!ex.fields[key]) return;
+        if (ex.fields[key].status === 'accepted' || ex.fields[key].status === 'corrected') return;
+        const val = prop && typeof prop === 'object' ? prop.value : prop;
+        const src = prop && typeof prop === 'object' ? (prop.source || '') : '';
+        if (val === undefined || val === null || val === '') return;
+        ex.fields[key].value = String(val);
+        ex.fields[key].source = String(src).slice(0, 120);
+        ex.fields[key].proposedBy = 'ai';
+        ex.fields[key].status = 'pending';
+      });
+    } catch (err) {
+      console.warn(err);
+      alert('Error IA en «' + ex.label + '»: ' + err.message);
+    }
+  }
+  renderExtractions();
+}
+
+async function callAI(provider, model, key, prompt) {
+  if (provider === 'openai') {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: model || 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], temperature: 0.1 })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return (await res.json()).choices[0].message.content;
+  }
+  if (provider === 'anthropic') {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: model || 'claude-3-5-haiku-20241022', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return (await res.json()).content[0].text;
+  }
+  if (provider === 'google') {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${key}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return (await res.json()).candidates[0].content.parts[0].text;
+  }
+  throw new Error('Proveedor no soportado');
+}
+
+function syncModel() {
+  const p = document.getElementById('aiProvider').value;
+  const m = document.getElementById('aiModel');
+  if (p === 'openai') m.value = 'gpt-4o-mini';
+  else if (p === 'anthropic') m.value = 'claude-3-5-haiku-20241022';
+  else m.value = 'gemini-1.5-flash';
+}
+
+/* ── Tabla final / export ── */
+function confirmedValue(cell) {
+  return cell && (cell.status === 'accepted' || cell.status === 'corrected') && cell.value !== '' && cell.value != null;
+}
+
+function rowFromExtraction(ex) {
+  const row = {};
+  Object.entries(ex.fields).forEach(([k, c]) => {
+    if (confirmedValue(c)) row[k] = c.value;
+  });
+  // Derive yi/sei from OR+CI if needed
+  if (row.or && row.ci_low && row.ci_high && !row.yi) {
+    const or = parseFloat(row.or), lo = parseFloat(row.ci_low), hi = parseFloat(row.ci_high);
+    if (or > 0 && lo > 0 && hi > 0) {
+      row.yi = Math.log(or);
+      row.sei = (Math.log(hi) - Math.log(lo)) / (2 * 1.959964);
+    }
+  }
+  if (!row.study) row.study = ex.label;
+  return row;
+}
+
+function buildFinalTable() {
+  const rows = extractions.map(rowFromExtraction).filter(r => r.study);
+  const keys = ['study', 'yi', 'sei', 'ni', 'n', 'mean', 'sd', 'or', 'ci_low', 'ci_high', 'group', 'events', 'total'];
+  const used = keys.filter(k => rows.some(r => r[k] != null && r[k] !== ''));
+
+  const thead = document.querySelector('#finalTable thead');
+  const tbody = document.querySelector('#finalTable tbody');
+  thead.innerHTML = '<tr>' + used.map(k => `<th>${k}</th>`).join('') + '</tr>';
+  tbody.innerHTML = rows.map(r =>
+    '<tr>' + used.map(k => `<td>${esc(r[k] ?? '')}</td>`).join('') + '</tr>'
+  ).join('');
+
+  const withYi = rows.filter(r => r.yi != null && r.sei != null).length;
+  document.getElementById('exportStats').innerHTML = `
+    <div class="s">${rows.length} estudios</div>
+    <div class="s">${withYi} con yi+sei listos</div>
+    <div class="s" style="background:#eef3ff;color:#1a4fd8">${used.length} columnas</div>`;
+
+  // Audit
+  let aiProp = 0, rulesProp = 0, human = 0, accepted = 0;
+  extractions.forEach(ex => {
+    Object.values(ex.fields).forEach(c => {
+      if (c.proposedBy === 'ai') aiProp++;
+      if (c.proposedBy === 'rules') rulesProp++;
+      if (c.proposedBy === 'human' || c.status === 'corrected') human++;
+      if (c.status === 'accepted' || c.status === 'corrected') accepted++;
+    });
+  });
+  const box = document.getElementById('auditBox');
+  box.style.display = 'flex';
+  box.innerHTML = `<i class="ti ti-shield-check"></i>
+    <div><strong>Auditoría:</strong> ${accepted} celdas confirmadas ·
+    propuestas por reglas: ${rulesProp} · por IA: ${aiProp} · edición humana: ${human}.
+    Proyecto: «${esc(document.getElementById('projName').value)}».</div>`;
+}
+
+function exportCSV() {
+  const rows = extractions.map(rowFromExtraction).filter(r => r.study);
+  // Prefer MetaAnálisisIA columns
+  const prefer = ['study', 'yi', 'sei', 'ni', 'group'];
+  const extra = ['n', 'mean', 'sd', 'or', 'ci_low', 'ci_high', 'events', 'total'];
+  const keys = [...prefer, ...extra].filter(k => rows.some(r => r[k] != null && r[k] !== ''));
+  // Ensure study,yi,sei order if present
+  let csv = keys.join(',') + '\n';
+  rows.forEach(r => {
+    csv += keys.map(k => {
+      const v = r[k] ?? '';
+      return /[,"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v;
+    }).join(',') + '\n';
+  });
+  downloadBlob(csv, 'extractmetaia_para_metaanalisis.csv', 'text/csv');
+}
+
+function exportJSON() {
+  const payload = {
+    project: {
+      name: document.getElementById('projName').value,
+      pico: document.getElementById('projPico').value,
+      outcome: document.getElementById('projOutcome').value,
+      measure: document.getElementById('projMeasure').value
+    },
+    schema: activeSchema,
+    sources: sources.map(s => ({ id: s.id, label: s.label })),
+    extractions: extractions.map(ex => ({
+      sourceId: ex.sourceId,
+      label: ex.label,
+      fields: ex.fields
+    })),
+    rows: extractions.map(rowFromExtraction),
+    exportedAt: new Date().toISOString(),
+    tool: 'ExtractMetaIA v0.1.0'
+  };
+  downloadBlob(JSON.stringify(payload, null, 2), 'extractmetaia_proyecto.json', 'application/json');
+}
+
+function exportAuditHTML() {
+  const rows = extractions.map(rowFromExtraction);
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Auditoría ExtractMetaIA</title>
+<style>body{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 16px;line-height:1.5}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 10px;font-size:13px}th{background:#f5f5f5}</style></head><body>
+<h1>Informe de extracción</h1>
+<p>ExtractMetaIA · ${new Date().toISOString().slice(0,10)} · ${esc(document.getElementById('projName').value)}</p>
+<p>${esc(document.getElementById('projPico').value)}</p>
+<h2>Tabla exportable</h2>
+<table><tr><th>study</th><th>yi</th><th>sei</th><th>group</th></tr>
+${rows.map(r => `<tr><td>${esc(r.study)}</td><td>${esc(r.yi)}</td><td>${esc(r.sei)}</td><td>${esc(r.group)}</td></tr>`).join('')}
+</table>
+<h2>Detalle por estudio</h2>
+${extractions.map(ex => `
+  <h3>${esc(ex.label)}</h3>
+  <table><tr><th>Campo</th><th>Valor</th><th>Estado</th><th>Propuesto por</th><th>Fuente</th></tr>
+  ${Object.entries(ex.fields).map(([k,c]) =>
+    `<tr><td>${esc(k)}</td><td>${esc(c.value)}</td><td>${esc(c.status)}</td><td>${esc(c.proposedBy||'')}</td><td>${esc(c.source||'')}</td></tr>`
+  ).join('')}
+  </table>`).join('')}
+<p style="margin-top:32px;font-size:12px;color:#666">Fernando Borrás Rocher · UMH · ExtractMetaIA. La confirmación humana es obligatoria para celdas exportadas.</p>
+</body></html>`;
+  downloadBlob(html, 'extractmetaia_auditoria.html', 'text/html');
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Init
+renderSchemas();
+</script>
+</body>
+</html>
