@@ -2,6 +2,7 @@
 
 **De papers a tablas listas para meta-análisis**, con trazabilidad y confirmación humana.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23124660.svg)](https://doi.org/10.5281/zenodo.23124660)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > Compañera de [MetaAnálisisIA](https://fborrasumh.github.io/metaanalisisia/) · Catálogo [fborrasumh/ia](https://fborrasumh.github.io/ia/) · UMH
