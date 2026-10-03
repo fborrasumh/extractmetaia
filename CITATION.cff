@@ -2,20 +2,25 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "ExtractMetaIA"
-abstract: "Extracción estructurada de datos de papers para meta-análisis, con trazabilidad y confirmación humana. Exporta tablas listas para MetaAnálisisIA. UMH."
+abstract: "Extracción estructurada de datos de papers para meta-análisis, con PDF, trazabilidad y confirmación humana. Exporta tablas listas para MetaAnálisisIA. UMH."
 authors:
   - family-names: "Borrás Rocher"
     given-names: "Fernando"
     orcid: "https://orcid.org/0000-0002-5519-4573"
     affiliation: "Universidad Miguel Hernández de Elche"
+  - family-names: "Quesada"
+    given-names: "José Antonio"
+    orcid: "https://orcid.org/0000-0002-6947-7531"
+    affiliation: "Universidad Miguel Hernández de Elche"
 license: MIT
-version: "0.2.0"
-doi: "10.5281/zenodo.23124660"
+version: "0.2.1"
+doi: "10.5281/zenodo.23124659"
 date-released: "2026-10-03"
 url: "https://fborrasumh.github.io/extractmetaia/"
 repository-code: "https://github.com/fborrasumh/extractmetaia"
 keywords:
   - data-extraction
+  - PDF
   - systematic-review
   - meta-analysis
   - evidence-synthesis

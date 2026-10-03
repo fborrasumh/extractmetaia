@@ -31,11 +31,13 @@ ExtractMetaIA  →  CSV/JSON  →  MetaAnálisisIA
 (extracción)      (export)     (síntesis)
 ```
 
-## Autor
+## Autores
 
 **Fernando Borrás Rocher**  
 Universidad Miguel Hernández de Elche  
 ORCID: [0000-0002-5519-4573](https://orcid.org/0000-0002-5519-4573)
+
+**José Antonio Quesada** · Universidad Miguel Hernández de Elche · ORCID: [0000-0002-6947-7531](https://orcid.org/0000-0002-6947-7531)
 
 ## Límites
 
