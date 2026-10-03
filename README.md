@@ -11,7 +11,7 @@
 
 1. Define el proyecto (pregunta PICO / outcomes)
 2. Elige o personaliza el **esquema de extracción**
-3. Pega texto de papers (abstract, results, tablas) o carga demo
+3. **Sube PDF** (texto extraído en el navegador), pega texto o carga demo
 4. La IA **propone** valores; tú **aceptas, corriges o rechazas** cada celda
 5. Exporta CSV / JSON listo para **MetaAnálisisIA** (columnas `study`, `yi`, `sei`, …)
 6. Informe de auditoría: qué propuso la IA y qué cambió el humano
@@ -39,7 +39,7 @@ ORCID: [0000-0002-5519-4573](https://orcid.org/0000-0002-5519-4573)
 
 ## Límites
 
-- La extracción de PDF nativo no está incluida en v0.1 (pega texto o tablas).
+- PDFs escaneados (solo imagen) no aportan texto; haría falta OCR externo.
 - Las propuestas de la IA pueden errar: la confirmación humana es obligatoria.
 - No sustituye la doble extracción independiente de una revisión Cochrane formal.
 

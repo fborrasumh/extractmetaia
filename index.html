@@ -207,6 +207,8 @@ footer a { color: var(--doc); }
   font-size: 13px; font-weight: 600;
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }</script>
 </head>
 <body>
 
@@ -234,7 +236,7 @@ footer a { color: var(--doc); }
       </a>
     </div>
     <div style="text-align:right;font-size:11px;color:var(--muted)">
-      <div>v0.1.0</div>
+      <div>v0.2.0</div>
       <div style="margin-top:2px">MIT</div>
     </div>
   </div>
@@ -309,12 +311,15 @@ footer a { color: var(--doc); }
   <!-- STEP 2: FUENTES -->
   <section class="panel" id="panel-2">
     <h2>Fuentes (estudios)</h2>
-    <p class="hint">Añade estudios pegando texto (abstract + results + tablas) o carga el demo. En v0.1 la entrada es texto; el PDF nativo queda para una versión posterior.</p>
+    <p class="hint">Sube un <strong>PDF</strong> (el texto se extrae en tu navegador), pega abstract/results/tablas o carga el demo. La IA y las reglas proponen; tú confirmas cada celda.</p>
 
     <div class="actions" style="margin-top:0">
-      <button class="btn btn-primary" type="button" onclick="loadDemoSources()"><i class="ti ti-flask"></i> Cargar 3 estudios demo</button>
-      <button class="btn btn-secondary" type="button" onclick="addSourceForm()"><i class="ti ti-plus"></i> Añadir estudio</button>
+      <button class="btn btn-primary" type="button" onclick="document.getElementById('pdfIn').click()"><i class="ti ti-file-type-pdf"></i> Subir PDF</button>
+      <input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden onchange="handlePdfFiles(event)">
+      <button class="btn btn-secondary" type="button" onclick="loadDemoSources()"><i class="ti ti-flask"></i> Demo (3 estudios)</button>
+      <button class="btn btn-secondary" type="button" onclick="addSourceForm()"><i class="ti ti-plus"></i> Pegar texto</button>
     </div>
+    <div id="pdfStatus"></div>
 
     <div id="sourcesList"></div>
 
@@ -403,8 +408,7 @@ footer a { color: var(--doc); }
     </div>
 
     <div class="limits">
-      <strong>Límites v0.1:</strong> entrada por texto (no PDF embebido). Propuestas por reglas cubren patrones frecuentes (n, media, DE, OR, IC); la IA mejora cobertura si la activas.
-      No sustituye doble extracción ciega de una revisión formal.
+      <strong>Límites:</strong> el texto del PDF se extrae en el navegador (PDF.js); PDFs escaneados (solo imagen) no tienen texto seleccionable y requerirían OCR (no incluido). Propuestas por reglas o IA; confirmación humana obligatoria. No sustituye doble extracción ciega de una revisión formal.
     </div>
   </section>
 
@@ -414,13 +418,13 @@ footer a { color: var(--doc); }
   <p><strong>ExtractMetaIA</strong> · <a href="https://orcid.org/0000-0002-5519-4573" target="_blank" rel="noopener">Fernando Borrás Rocher</a> · Universidad Miguel Hernández de Elche</p>
   <p style="margin-top:5px">
     <a href="https://fborrasumh.github.io/metaanalisisia/" target="_blank" rel="noopener">MetaAnálisisIA</a> ·
-    <a href="https://fborrasumh.github.io/ia/" target="_blank" rel="noopener">Catálogo IA</a> · Licencia MIT · v0.1.0 · <a href="https://doi.org/10.5281/zenodo.23124660" target="_blank" rel="noopener">DOI</a>
+    <a href="https://fborrasumh.github.io/ia/" target="_blank" rel="noopener">Catálogo IA</a> · Licencia MIT · v0.2.0 · <a href="https://doi.org/10.5281/zenodo.23124660" target="_blank" rel="noopener">DOI</a>
   </p>
 </footer>
 
 <script>
 /* ═══════════════════════════════════════════════════════════
-   ExtractMetaIA v0.1 — extracción estructurada + confirmación
+   ExtractMetaIA v0.2 — extracción estructurada + confirmación
    ═══════════════════════════════════════════════════════════ */
 
 const SCHEMAS = {
@@ -551,7 +555,7 @@ function addSourceForm() {
 function renderSources() {
   const el = document.getElementById('sourcesList');
   if (!sources.length) {
-    el.innerHTML = `<div class="msg msg-amber"><i class="ti ti-alert-triangle"></i> Aún no hay fuentes. Carga el demo o añade un estudio.</div>`;
+    el.innerHTML = `<div class="msg msg-amber"><i class="ti ti-alert-triangle"></i> Aún no hay fuentes. Sube un PDF, carga el demo o pega texto.</div>`;
     return;
   }
   el.innerHTML = sources.map((s, idx) => `
@@ -560,10 +564,12 @@ function renderSources() {
         <i class="ti ti-file-text"></i>
         <input type="text" value="${esc(s.label)}" onchange="sources[${idx}].label=this.value"
           style="flex:1;margin:0;font-weight:700;border:1px solid var(--border);border-radius:6px;padding:4px 8px">
+        <span class="chip chip-human">${(s.text||'').length} car.</span>
         <button class="btn btn-ghost" type="button" onclick="sources.splice(${idx},1);renderSources()"><i class="ti ti-trash"></i></button>
       </h4>
-      <label>Texto del paper (abstract, results, tablas…)</label>
-      <textarea rows="5" onchange="sources[${idx}].text=this.value">${esc(s.text)}</textarea>
+      ${s.note ? `<p style="font-size:12px;color:var(--muted);margin:0 0 8px">${esc(s.note)}</p>` : ''}
+      <label>Texto del paper (extraído del PDF o pegado)</label>
+      <textarea rows="6" onchange="sources[${idx}].text=this.value;sources[${idx}].note=undefined;renderSources()">${esc(s.text)}</textarea>
     </div>`).join('');
 }
 
@@ -926,7 +932,7 @@ function exportJSON() {
     })),
     rows: extractions.map(rowFromExtraction),
     exportedAt: new Date().toISOString(),
-    tool: 'ExtractMetaIA v0.1.0'
+    tool: 'ExtractMetaIA v0.2.0'
   };
   downloadBlob(JSON.stringify(payload, null, 2), 'extractmetaia_proyecto.json', 'application/json');
 }
@@ -964,6 +970,66 @@ function downloadBlob(content, filename, type) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+
+/* ── PDF upload (texto en el navegador con PDF.js) ── */
+async function handlePdfFiles(ev) {
+  const files = Array.from(ev.target.files || []);
+  ev.target.value = '';
+  if (!files.length) return;
+  if (!window.pdfjsLib) {
+    alert('PDF.js no cargó. Revisa la conexión o pega el texto manualmente.');
+    return;
+  }
+  const status = document.getElementById('pdfStatus');
+  status.innerHTML = '<div class="msg msg-info"><i class="ti ti-loader"></i> Extrayendo texto de ' + files.length + ' PDF(s) en tu navegador…</div>';
+
+  for (const file of files) {
+    try {
+      const text = await extractTextFromPdf(file);
+      const label = file.name.replace(/\.pdf$/i, '').slice(0, 80) || 'PDF';
+      if (!text || text.trim().length < 20) {
+        sources.push({
+          id: 'pdf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          label,
+          text: '',
+          note: 'PDF sin texto extraíble (posible escaneo). Pega el texto o usa OCR externo.'
+        });
+      } else {
+        sources.push({
+          id: 'pdf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          label,
+          text: text.trim(),
+          note: 'PDF · ' + text.trim().length + ' caracteres extraídos localmente'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      status.innerHTML = '<div class="msg msg-warn"><i class="ti ti-alert-triangle"></i> Error al leer «' + esc(file.name) + '»: ' + esc(err.message) + '</div>';
+    }
+  }
+  renderSources();
+  const ok = sources.filter(s => s.text && s.text.length > 20).length;
+  status.innerHTML = '<div class="msg msg-ok"><i class="ti ti-check"></i> ' + ok + ' fuente(s) con texto. Revisa y continúa a extracción; usa «Proponer con IA» si tienes API key.</div>';
+}
+
+async function extractTextFromPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const maxPages = Math.min(pdf.numPages, 40); // límite práctico por estudio
+  const parts = [];
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(it => it.str).join(' ');
+    parts.push(pageText);
+  }
+  if (pdf.numPages > maxPages) {
+    parts.push('\\n[… texto truncado: solo primeras ' + maxPages + ' páginas de ' + pdf.numPages + ' …]');
+  }
+  return parts.join('\\n\\n');
+}
+
 
 // Init
 renderSchemas();
